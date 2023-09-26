@@ -1,6 +1,6 @@
 # react-native-story-ui
 
-Instagram story UI 
+Instagram story UI
 
 ## Installation
 
