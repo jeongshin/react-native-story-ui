@@ -8,15 +8,10 @@ Instagram story UI
 npm install react-native-story-ui
 ```
 
-## Usage
+## WIP
 
-```js
-import { multiply } from 'react-native-story-ui';
-
-// ...
-
-const result = await multiply(3, 7);
-```
+- [ ] Auto Play Header
+- [ ] Nested FlatList
 
 ## Contributing
 
