@@ -1,7 +1,8 @@
-import React, { useCallback, type ReactNode, useState, useMemo } from 'react';
-import type { NativeScrollEvent } from 'react-native';
+import React, { type ReactNode, useCallback, useState, useMemo } from 'react';
 
-import { useWindowDimensions, View } from 'react-native';
+import type { NativeScrollEvent, StyleProp, ViewStyle } from 'react-native';
+
+import { useWindowDimensions, View, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import {
@@ -13,9 +14,9 @@ import {
   type WithSpringConfig,
 } from 'react-native-reanimated';
 import { CubeAnimation } from '../CubeAnimation';
-import type { StyleProp } from 'react-native';
-import type { ViewStyle } from 'react-native';
-import { StyleSheet } from 'react-native';
+import { StoryContext, type StoryContextType } from '../../context';
+import StoryPageHeader from './components/StoryPageHeader';
+import StoryFlatList from './components/StoryFlatList';
 
 export type StoryRenderItem<T> = (info: {
   item: T;
@@ -28,8 +29,7 @@ export interface StoryGestureConfig {
 
 export interface StoryProps<T> {
   stories: T[][];
-  renderItem: StoryRenderItem<T>;
-  renderStory?: StoryRenderItem<T[]>;
+  renderStory: StoryRenderItem<T[]>;
   initialPageIndex?: number;
   onChangePageIndex?: (i: number) => void;
   onScroll?: (e: NativeScrollEvent) => void;
@@ -38,6 +38,8 @@ export interface StoryProps<T> {
   minFlingVelocity?: number;
   style?: StyleProp<ViewStyle>;
   bounceThreshold?: number;
+  onReachedFirstPage?: () => void;
+  onReachedLastPage?: () => void;
 }
 
 const SPRING_CONFIG: WithSpringConfig = {
@@ -51,16 +53,16 @@ const SPRING_CONFIG: WithSpringConfig = {
 
 function Story<T>({
   stories,
-  // onScroll,
-  // renderStory: givenRenderPage,
-  renderItem,
   initialPageIndex = 0,
   onChangePageIndex,
   gestureConfig,
   springConfig,
   minFlingVelocity = 300,
   bounceThreshold = 0.4,
+  renderStory,
   style,
+  onReachedFirstPage,
+  onReachedLastPage,
 }: StoryProps<T>) {
   const { width, height } = useWindowDimensions();
 
@@ -79,6 +81,8 @@ function Story<T>({
     [stories.length]
   );
 
+  console.log('activePageIndex', activePageIndex);
+
   const savedSpringConfig = useMemo<WithSpringConfig>(
     () => ({ ...SPRING_CONFIG, springConfig }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,19 +91,29 @@ function Story<T>({
 
   const handleChangePageIndex = useCallback(
     (index: number) => {
-      console.log('=======PAGE CHANGED======', index);
+      // console.log('=======PAGE CHANGED======', index);
       setActivePageIndex(index);
       onChangePageIndex?.(index);
     },
     [onChangePageIndex]
   );
 
-  // const scrollToPage = useCallback(
-  //   (index: number) => {
-  //     scrollX.value = withSpring(index * width * -1, savedSpringConfig);
-  //   },
-  //   [width, scrollX, savedSpringConfig]
-  // );
+  const setPageIndex = useCallback(
+    (index: number) => {
+      if (index < 0) {
+        return onReachedFirstPage?.();
+      }
+
+      if (index > maxPageIndex.value) {
+        return onReachedLastPage?.();
+      }
+
+      scrollX.value = withSpring(index * width * -1, savedSpringConfig);
+      handleChangePageIndex(index);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [width, handleChangePageIndex]
+  );
 
   useAnimatedReaction(
     () => Math.round(pageIndex.value),
@@ -114,85 +128,84 @@ function Story<T>({
     pageAnimation.value = scrollX.value * -1;
   }, [pageAnimation, scrollX]);
 
-  console.log('rerender', activePageIndex);
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onBegin(() => {
+          savedScrollX.value = scrollX.value;
+        })
+        .onUpdate((e) => {
+          'worklet';
+          const translateX = e.translationX + savedScrollX.value;
 
-  const gesture = Gesture.Pan()
-    .onBegin((e) => {
-      console.log('begin', e.translationX);
+          if (
+            // page over min index
+            translateX > width * bounceThreshold ||
+            // page over max index
+            Math.abs(translateX) >
+              width * maxPageIndex.value + width * bounceThreshold
+          ) {
+            console.log(
+              '[react-native-story-ui] cannot scroll over min or max index'
+            );
+            return;
+          }
 
-      savedScrollX.value = scrollX.value;
-    })
-    .onUpdate((e) => {
-      'worklet';
-      const translateX = e.translationX + savedScrollX.value;
+          scrollX.value = translateX;
+        })
+        .onEnd((e) => {
+          'worklet';
+          const velocity = e.velocityX;
+          const isFling = Math.abs(velocity) > minFlingVelocity;
+          const sign = Math.sign(velocity);
+          const flingMomentum = isFling ? (width / 2) * sign : 0;
+          let page = -Math.round((scrollX.value + flingMomentum) / width);
 
-      if (
-        // page over min index
-        translateX > width * bounceThreshold ||
-        // page over max index
-        Math.abs(translateX) >
-          width * maxPageIndex.value + width * bounceThreshold
-      ) {
-        console.log('cannot scroll over min or max index');
-        return;
-      }
+          if (page < 0) {
+            page = 0;
+          }
 
-      scrollX.value = translateX;
-      // const nextPageIndex = translateX / width;
-      // console.log(nextPageIndex);
-    })
-    .onTouchesDown((_) => {
-      console.log('touch down');
-    })
-    .onTouchesUp((_) => {
-      console.log('touch up');
-    })
-    // .onTouchesMove((e) => {
-    //   const [mainTouch] = e.changedTouches;
-    //   if (!mainTouch) return;
-    //   console.log('touch');
-    // })
-    .onEnd((e) => {
-      'worklet';
-      const velocity = e.velocityX;
-      const isFling = Math.abs(velocity) > minFlingVelocity;
-      const sign = Math.sign(velocity);
-      const flingMomentum = isFling ? (width / 2) * sign : 0;
-      let page = -Math.round((scrollX.value + flingMomentum) / width);
+          if (page > maxPageIndex.value) {
+            page = maxPageIndex.value;
+          }
 
-      if (page < 0) {
-        page = 0;
-      }
+          scrollX.value = withSpring(-page * width, savedSpringConfig);
 
-      if (page > maxPageIndex.value) {
-        page = maxPageIndex.value;
-      }
+          pageIndex.value = page;
+        })
+        .minDistance(gestureConfig?.minDistance ?? 10),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bounceThreshold, gestureConfig?.minDistance, minFlingVelocity, width]
+  );
 
-      scrollX.value = withSpring(-page * width, savedSpringConfig);
-      pageIndex.value = page;
-    })
-    .onFinalize(() => {
-      'worklet';
-      console.log('finalize', scrollX.value, scrollX.value / width);
-    })
-    .minDistance(gestureConfig?.minDistance ?? 10);
+  const context: StoryContextType = useMemo(
+    () => ({
+      setPageIndex,
+    }),
+    [setPageIndex]
+  );
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={StyleSheet.flatten([style, { width, height }])}>
-        {stories.map((items, i) => (
-          <CubeAnimation
-            isActive={activePageIndex === i}
-            scrollX={pageAnimation}
-            index={i}
-            key={`cube-${i}`}
-          >
-            {items.map((item, index) => renderItem({ item, index }))}
-          </CubeAnimation>
-        ))}
-      </View>
+      <StoryContext.Provider value={context}>
+        <View style={StyleSheet.flatten([style, { width, height }])}>
+          {stories.map((items, i) => (
+            <CubeAnimation
+              isActive={activePageIndex === i}
+              scrollX={pageAnimation}
+              index={i}
+              key={`cube-${i}`}
+            >
+              {renderStory?.({ item: items, index: i })}
+            </CubeAnimation>
+          ))}
+        </View>
+      </StoryContext.Provider>
     </GestureDetector>
   );
 }
+
+Story.PageHeader = StoryPageHeader;
+Story.FlatList = StoryFlatList;
 
 export { Story };
