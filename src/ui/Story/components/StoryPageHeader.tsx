@@ -1,6 +1,5 @@
 import React from 'react';
-import { useWindowDimensions } from 'react-native';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useStoryFlatListContext } from '../../../hooks/useStoryFlatListContext';
 import Animated, {
   Easing,
@@ -12,6 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useStoryContext } from '../../../hooks/useStoryContext';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 interface StoryPageHeaderProps<T> {
   data: T[];
@@ -21,6 +21,10 @@ interface StoryPageHeaderProps<T> {
   inactiveColor?: string;
   activeColor?: string;
   pageIndex: number;
+
+  // TODO: add props below
+  autoPlay?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 function StoryPageHeader<T>({
@@ -40,16 +44,17 @@ function StoryPageHeader<T>({
 
   const animation = useSharedValue<number>(0);
 
-  // use reacted value to fix flickering when activeItemIndex changed faster than animation
+  // use reacted value to fix flickering since activeItemIndex value changes faster than animation value
   const reactedActiveItemIndex = useSharedValue<number>(activeItemIndex.value);
 
   const itemSize =
     (width - paddingHorizontal * 2 - gap * (data.length - 1)) / data.length;
 
+  // TODO: start animation when focused image loaded
   useAnimatedReaction(
     () => [activeItemIndex.value, activePageIndex.value],
-    (prev, next) => {
-      console.log('active index changed', prev, next);
+    () => {
+      // console.log('active index changed', prev, next);
 
       if (activePageIndex.value !== pageIndex) return;
 
@@ -63,6 +68,7 @@ function StoryPageHeader<T>({
         1,
         { duration, easing: Easing.linear },
         () => {
+          // TODO: add auto next page feature
           // console.log('done animation', done, maxItemIndex);
         }
       );

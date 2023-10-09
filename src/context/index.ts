@@ -13,6 +13,7 @@ export interface StoryFlatListContextType {
   activeItemIndex: SharedValue<number>;
   maxItemIndex: SharedValue<number>;
   handleSkipItemOnPress: (e: GestureResponderEvent) => void;
+  // TODO: pause & resume header animation
 }
 
 export const StoryFlatListContext =

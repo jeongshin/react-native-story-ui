@@ -1,16 +1,14 @@
 import React, { useCallback, useRef, type ReactElement, useMemo } from 'react';
 import type { FlatListProps } from 'react-native';
-import { useWindowDimensions } from 'react-native';
-import { FlatList } from 'react-native';
+import { View, FlatList, useWindowDimensions, StyleSheet } from 'react-native';
+
 // import { useStoryContext } from '../../../hooks/useStoryContext';
-import { View } from 'react-native';
 import {
   StoryFlatListContext,
   type StoryFlatListContextType,
 } from '../../../context';
 import type { GestureResponderEvent } from 'react-native';
 import { useStoryContext } from '../../../hooks/useStoryContext';
-import { StyleSheet } from 'react-native';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 interface StoryFlatListProps<T> extends FlatListProps<T> {
