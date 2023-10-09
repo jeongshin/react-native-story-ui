@@ -91,7 +91,7 @@ function Story<T>({
 
   const handleChangePageIndex = useCallback(
     (index: number) => {
-      // console.log('=======PAGE CHANGED======', index);
+      console.log('=======PAGE CHANGED======', index);
       setActivePageIndex(index);
       onChangePageIndex?.(index);
     },
@@ -109,6 +109,7 @@ function Story<T>({
       }
 
       scrollX.value = withSpring(index * width * -1, savedSpringConfig);
+      pageIndex.value = index;
       handleChangePageIndex(index);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,8 +182,9 @@ function Story<T>({
   const context: StoryContextType = useMemo(
     () => ({
       setPageIndex,
+      activePageIndex: pageIndex,
     }),
-    [setPageIndex]
+    [setPageIndex, pageIndex]
   );
 
   return (

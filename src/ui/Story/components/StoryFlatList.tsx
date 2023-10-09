@@ -10,10 +10,13 @@ import {
 } from '../../../context';
 import type { GestureResponderEvent } from 'react-native';
 import { useStoryContext } from '../../../hooks/useStoryContext';
+import { StyleSheet } from 'react-native';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 interface StoryFlatListProps<T> extends FlatListProps<T> {
   pageIndex: number;
   PageHeaderElement?: ReactElement;
+  PageFooterElement?: ReactElement;
 }
 
 function StoryFlatList<T>({
@@ -22,57 +25,69 @@ function StoryFlatList<T>({
   pageIndex,
   PageHeaderElement,
   initialScrollIndex,
+  PageFooterElement,
+  style,
+  ...props
 }: StoryFlatListProps<T>) {
   const { width, height } = useWindowDimensions();
 
-  const maxItemIndex = data ? data.length - 1 : 0;
+  const maxItemIndex = useDerivedValue(() => {
+    return data ? data.length - 1 : 0;
+  }, [data?.length]);
 
   const { setPageIndex } = useStoryContext();
 
   const ref = useRef<FlatList<T> | null>(null);
 
-  const activeIndex = useRef<number>(initialScrollIndex ?? 0);
+  const activeItemIndex = useSharedValue<number>(initialScrollIndex ?? 0);
 
   const onPressItem = useCallback(
     (e: GestureResponderEvent) => {
-      const pageX = e.nativeEvent.locationX;
-      console.log('pageX', pageX);
+      'worklet';
+      const pageX = e.nativeEvent.pageX;
+      let nextItemIndex = activeItemIndex.value;
+
       // to left
       if (pageX < width / 3) {
-        if (activeIndex.current - 1 < 0) {
+        if (activeItemIndex.value <= 0) {
           setPageIndex(pageIndex - 1);
           return;
         }
 
-        activeIndex.current -= 1;
-      }
-
-      // to right
-      if (pageX > (width * 2) / 3) {
-        if (activeIndex.current + 1 > maxItemIndex) {
+        nextItemIndex -= 1;
+      } else if (pageX > (width * 2) / 3) {
+        if (activeItemIndex.value >= maxItemIndex.value) {
           setPageIndex(pageIndex + 1);
           return;
         }
 
-        activeIndex.current += 1;
+        nextItemIndex += 1;
+      } else {
+        return;
       }
 
-      ref.current?.scrollToIndex({
-        index: activeIndex.current,
+      if (!ref.current) return;
+
+      console.log('scroll to index', nextItemIndex);
+
+      ref.current.scrollToIndex({
+        index: nextItemIndex,
         animated: false,
       });
+
+      activeItemIndex.value = nextItemIndex;
     },
-    [width, setPageIndex, pageIndex, maxItemIndex]
+    [width, setPageIndex, pageIndex, maxItemIndex, activeItemIndex]
   );
 
   const context = useMemo<StoryFlatListContextType>(
     () => ({
-      onPressItem,
+      maxItemIndex,
+      handleSkipItemOnPress: onPressItem,
+      activeItemIndex,
     }),
-    [onPressItem]
+    [onPressItem, maxItemIndex, activeItemIndex]
   );
-
-  // const context
 
   const getItemLayout = useCallback(
     (_: ArrayLike<T> | undefined | null, index: number) => {
@@ -91,18 +106,18 @@ function StoryFlatList<T>({
         {PageHeaderElement}
         <FlatList
           ref={ref}
+          {...props}
           data={data}
           getItemLayout={getItemLayout}
           renderItem={renderItem}
           snapToInterval={width}
           pagingEnabled
           horizontal
-          windowSize={2}
-          initialNumToRender={3}
           initialScrollIndex={initialScrollIndex}
-          style={{ width, flex: 1 }}
+          style={StyleSheet.flatten([style, { width, flex: 1 }])}
           scrollEnabled={false}
         />
+        {PageFooterElement}
       </View>
     </StoryFlatListContext.Provider>
   );

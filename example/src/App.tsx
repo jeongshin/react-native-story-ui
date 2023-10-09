@@ -63,6 +63,7 @@ export default function App() {
         data={items}
         pageIndex={index}
         renderItem={({ item }) => <Item item={item} />}
+        PageFooterElement={<Story.PageHeader data={items} pageIndex={index} />}
       />
     );
   };
@@ -81,12 +82,18 @@ export default function App() {
 const Item = ({ item }: { item: Item }) => {
   const { width, height } = useWindowDimensions();
 
-  const { onPressItem } = useStoryFlatListContext();
+  const { handleSkipItemOnPress } = useStoryFlatListContext();
 
   return (
     <Pressable
+      onPressIn={() => {
+        //
+      }}
+      onPressOut={() => {
+        //
+      }}
       onPress={(e) => {
-        onPressItem(e);
+        handleSkipItemOnPress(e);
       }}
     >
       <Image

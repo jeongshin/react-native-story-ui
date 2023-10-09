@@ -1,14 +1,18 @@
 import { createContext } from 'react';
 import type { GestureResponderEvent } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 
 export interface StoryContextType {
+  activePageIndex: SharedValue<number>;
   setPageIndex: (idx: number) => void;
 }
 
 export const StoryContext = createContext<StoryContextType | null>(null);
 
 export interface StoryFlatListContextType {
-  onPressItem: (e: GestureResponderEvent) => void;
+  activeItemIndex: SharedValue<number>;
+  maxItemIndex: SharedValue<number>;
+  handleSkipItemOnPress: (e: GestureResponderEvent) => void;
 }
 
 export const StoryFlatListContext =
