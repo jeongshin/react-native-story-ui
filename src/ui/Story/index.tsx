@@ -160,19 +160,24 @@ function Story<T>({
           const isFling = Math.abs(velocity) > minFlingVelocity;
           const sign = Math.sign(velocity);
           const flingMomentum = isFling ? (width / 2) * sign : 0;
-          let page = -Math.round((scrollX.value + flingMomentum) / width);
 
-          if (page < 0) {
-            page = 0;
+          let nextPage = -Math.round((scrollX.value + flingMomentum) / width);
+
+          if (nextPage < 0) {
+            nextPage = 0;
           }
 
-          if (page > maxPageIndex.value) {
-            page = maxPageIndex.value;
+          if (nextPage > maxPageIndex.value) {
+            nextPage = maxPageIndex.value;
           }
 
-          scrollX.value = withSpring(-page * width, savedSpringConfig);
-
-          pageIndex.value = page;
+          scrollX.value = withSpring(
+            -nextPage * width,
+            savedSpringConfig,
+            () => {
+              pageIndex.value = nextPage;
+            }
+          );
         })
         .minDistance(gestureConfig?.minDistance ?? 10),
     // eslint-disable-next-line react-hooks/exhaustive-deps

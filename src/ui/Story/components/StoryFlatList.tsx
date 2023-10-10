@@ -39,6 +39,27 @@ function StoryFlatList<T>({
 
   const activeItemIndex = useSharedValue<number>(initialScrollIndex ?? 0);
 
+  const setActiveItem = useCallback(
+    (index: number) => {
+      activeItemIndex.value = index;
+
+      ref.current?.scrollToIndex({
+        index: index,
+        animated: false,
+      });
+    },
+    [activeItemIndex]
+  );
+
+  const skipToNextItem = useCallback(() => {
+    const nextItemIndex = activeItemIndex.value + 1;
+    if (nextItemIndex > maxItemIndex.value) {
+      return setPageIndex(pageIndex + 1);
+    }
+
+    setActiveItem(nextItemIndex);
+  }, [activeItemIndex, maxItemIndex, pageIndex, setActiveItem, setPageIndex]);
+
   const onPressItem = useCallback(
     (e: GestureResponderEvent) => {
       'worklet';
@@ -68,14 +89,16 @@ function StoryFlatList<T>({
 
       console.log('scroll to index', nextItemIndex);
 
-      ref.current.scrollToIndex({
-        index: nextItemIndex,
-        animated: false,
-      });
-
-      activeItemIndex.value = nextItemIndex;
+      setActiveItem(nextItemIndex);
     },
-    [width, setPageIndex, pageIndex, maxItemIndex, activeItemIndex]
+    [
+      activeItemIndex,
+      width,
+      setActiveItem,
+      setPageIndex,
+      pageIndex,
+      maxItemIndex,
+    ]
   );
 
   const context = useMemo<StoryFlatListContextType>(
@@ -83,8 +106,9 @@ function StoryFlatList<T>({
       maxItemIndex,
       handleSkipItemOnPress: onPressItem,
       activeItemIndex,
+      skipToNextItem,
     }),
-    [onPressItem, maxItemIndex, activeItemIndex]
+    [onPressItem, maxItemIndex, activeItemIndex, skipToNextItem]
   );
 
   const getItemLayout = useCallback(

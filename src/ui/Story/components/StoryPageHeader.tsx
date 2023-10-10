@@ -5,6 +5,7 @@ import Animated, {
   Easing,
   cancelAnimation,
   interpolate,
+  runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
@@ -12,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useStoryContext } from '../../../hooks/useStoryContext';
 import type { StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 interface StoryPageHeaderProps<T> {
   data: T[];
@@ -24,21 +26,24 @@ interface StoryPageHeaderProps<T> {
 
   // TODO: add props below
   autoPlay?: boolean;
+  topInset?: number;
   style?: StyleProp<ViewStyle>;
 }
 
 function StoryPageHeader<T>({
-  duration = 3000,
+  duration = 4000,
   data,
   paddingHorizontal = 10,
   gap = 4,
   inactiveColor = '#ffffff44',
   activeColor = '#ffffff',
   pageIndex,
+  topInset = 54,
+  style,
 }: StoryPageHeaderProps<T>) {
   const { width } = useWindowDimensions();
 
-  const { activeItemIndex } = useStoryFlatListContext();
+  const { activeItemIndex, skipToNextItem } = useStoryFlatListContext();
 
   const { activePageIndex } = useStoryContext();
 
@@ -67,9 +72,9 @@ function StoryPageHeader<T>({
       animation.value = withTiming(
         1,
         { duration, easing: Easing.linear },
-        () => {
-          // TODO: add auto next page feature
-          // console.log('done animation', done, maxItemIndex);
+        (done) => {
+          if (!done) return;
+          runOnJS(skipToNextItem)();
         }
       );
     },
@@ -78,16 +83,19 @@ function StoryPageHeader<T>({
 
   return (
     <View
-      style={{
-        width,
-        height: 58,
-        position: 'absolute',
-        left: 0,
-        top: 58,
-        flexDirection: 'row',
-        paddingHorizontal,
-        justifyContent: 'space-evenly',
-      }}
+      style={StyleSheet.flatten([
+        {
+          width,
+          position: 'absolute',
+          left: 0,
+          top: topInset,
+          flexDirection: 'row',
+          paddingHorizontal,
+          justifyContent: 'space-evenly',
+          // backgroundColor: 'red',
+        },
+        style,
+      ])}
     >
       {data.map((_, index) => (
         <View

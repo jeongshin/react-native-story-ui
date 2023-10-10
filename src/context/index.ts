@@ -12,6 +12,7 @@ export const StoryContext = createContext<StoryContextType | null>(null);
 export interface StoryFlatListContextType {
   activeItemIndex: SharedValue<number>;
   maxItemIndex: SharedValue<number>;
+  skipToNextItem: () => void;
   handleSkipItemOnPress: (e: GestureResponderEvent) => void;
   // TODO: pause & resume header animation
 }
