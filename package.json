@@ -126,7 +126,8 @@
       "prettier"
     ],
     "rules": {
-      "react-native/no-inline-styles": "off"
+      "react-native/no-inline-styles": "off",
+      "@typescript-eslint/no-unused-vars": "warn"
     }
   },
   "eslintIgnore": [

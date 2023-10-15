@@ -21,7 +21,7 @@ const CubeAnimation: React.FC<CubeAnimationProps> = ({
   index,
   isActive,
 }) => {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const ratio = Platform.OS === 'ios' ? 2 : 1.23;
   const offset = width * index;
@@ -70,11 +70,11 @@ const CubeAnimation: React.FC<CubeAnimationProps> = ({
       opacity: interpolate(
         scrollX.value,
         [
-          offset - width * 2,
           offset - width,
+          offset - width * 0.8,
           offset,
+          offset + width * 0.8,
           offset + width,
-          offset + width * 2,
         ],
         [0, 0.5, 1, 0.5, 0],
         Extrapolation.CLAMP
@@ -85,7 +85,7 @@ const CubeAnimation: React.FC<CubeAnimationProps> = ({
   return (
     <Animated.View
       pointerEvents={isActive ? 'auto' : 'none'}
-      style={[{ width, height }, StyleSheet.absoluteFill, animatedStyle]}
+      style={[{ width }, StyleSheet.absoluteFill, animatedStyle]}
     >
       {children}
     </Animated.View>
