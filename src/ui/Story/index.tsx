@@ -1,6 +1,6 @@
 import React, { type ReactNode, useCallback, useState, useMemo } from 'react';
 
-import type { NativeScrollEvent, StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 import { useWindowDimensions, View, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -14,7 +14,12 @@ import {
   type WithSpringConfig,
 } from 'react-native-reanimated';
 import { CubeAnimation } from '../CubeAnimation';
-import { StoryContext, type StoryContextType } from '../../context';
+import {
+  StoryContext,
+  type PressState,
+  type StoryContextType,
+  type TouchState,
+} from '../../context';
 import StoryPageHeader from './components/StoryPageHeader';
 import StoryFlatList from './components/StoryFlatList';
 
@@ -23,8 +28,17 @@ export type StoryRenderItem<T> = (info: {
   index: number;
 }) => ReactNode;
 
-export interface StoryGestureConfig {
+export interface StoryPanGestureConfig {
   minDistance?: number;
+  minFlingVelocity?: number;
+  springConfig?: Partial<WithSpringConfig>;
+  bounceThreshold?: number;
+}
+
+export interface StoryLongPressGestureConfig {
+  minDuration?: number;
+  maxDistance?: number;
+  enabled?: boolean;
 }
 
 export interface StoryProps<T> {
@@ -32,12 +46,9 @@ export interface StoryProps<T> {
   renderStory: StoryRenderItem<T[]>;
   initialPageIndex?: number;
   onChangePageIndex?: (i: number) => void;
-  onScroll?: (e: NativeScrollEvent) => void;
-  gestureConfig?: StoryGestureConfig;
-  springConfig?: Partial<WithSpringConfig>;
-  minFlingVelocity?: number;
+  panGestureConfig?: StoryPanGestureConfig;
+  longPressGestureConfig?: StoryPanGestureConfig;
   style?: StyleProp<ViewStyle>;
-  bounceThreshold?: number;
   onReachedFirstPage?: () => void;
   onReachedLastPage?: () => void;
 }
@@ -51,14 +62,26 @@ const SPRING_CONFIG: WithSpringConfig = {
   restDisplacementThreshold: 0.2,
 };
 
+const DEFAULT_PAN_GESTURE_CONFIG: Required<StoryPanGestureConfig> = {
+  springConfig: SPRING_CONFIG,
+  minDistance: 10,
+  minFlingVelocity: 300,
+  bounceThreshold: 0.4,
+};
+
+const DEFAULT_LONG_PRESS_GESTURE_CONFIG: Required<StoryLongPressGestureConfig> =
+  {
+    minDuration: 200,
+    maxDistance: 10,
+    enabled: true,
+  };
+
 function Story<T>({
   stories,
   initialPageIndex = 0,
+  panGestureConfig: _panGestureConfig,
+  longPressGestureConfig: _longPressGestureConfig,
   onChangePageIndex,
-  gestureConfig,
-  springConfig,
-  minFlingVelocity = 300,
-  bounceThreshold = 0.4,
   renderStory,
   style,
   onReachedFirstPage,
@@ -74,6 +97,26 @@ function Story<T>({
 
   const pageAnimation = useSharedValue(0);
 
+  const rootTouchState = useSharedValue<TouchState>('up');
+
+  const rootPressState = useSharedValue<PressState>('pressOut');
+
+  const panGestureConfig = useMemo<Required<StoryPanGestureConfig>>(
+    () => ({
+      ...DEFAULT_PAN_GESTURE_CONFIG,
+      ..._panGestureConfig,
+    }),
+    [_panGestureConfig]
+  );
+
+  const longPressGestureConfig = useMemo<Required<StoryLongPressGestureConfig>>(
+    () => ({
+      ...DEFAULT_LONG_PRESS_GESTURE_CONFIG,
+      ..._longPressGestureConfig,
+    }),
+    [_longPressGestureConfig]
+  );
+
   const [activePageIndex, setActivePageIndex] = useState(initialPageIndex);
 
   const maxPageIndex = useDerivedValue(
@@ -81,17 +124,14 @@ function Story<T>({
     [stories.length]
   );
 
-  console.log('activePageIndex', activePageIndex);
-
   const savedSpringConfig = useMemo<WithSpringConfig>(
-    () => ({ ...SPRING_CONFIG, springConfig }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => ({ ...SPRING_CONFIG }),
     []
   );
 
   const handleChangePageIndex = useCallback(
     (index: number) => {
-      console.log('=======PAGE CHANGED======', index);
+      // console.log('=======PAGE CHANGED======', index);
       setActivePageIndex(index);
       onChangePageIndex?.(index);
     },
@@ -129,7 +169,7 @@ function Story<T>({
     pageAnimation.value = scrollX.value * -1;
   }, [pageAnimation, scrollX]);
 
-  const gesture = useMemo(
+  const panGesture = useMemo(
     () =>
       Gesture.Pan()
         .onBegin(() => {
@@ -141,14 +181,15 @@ function Story<T>({
 
           if (
             // page over min index
-            translateX > width * bounceThreshold ||
+            translateX > width * panGestureConfig.bounceThreshold ||
             // page over max index
             Math.abs(translateX) >
-              width * maxPageIndex.value + width * bounceThreshold
+              width * maxPageIndex.value +
+                width * panGestureConfig.bounceThreshold
           ) {
-            console.log(
-              '[react-native-story-ui] cannot scroll over min or max index'
-            );
+            // console.log(
+            //   '[react-native-story-ui] cannot scroll over min or max index'
+            // );
             return;
           }
 
@@ -157,7 +198,8 @@ function Story<T>({
         .onEnd((e) => {
           'worklet';
           const velocity = e.velocityX;
-          const isFling = Math.abs(velocity) > minFlingVelocity;
+          const isFling =
+            Math.abs(velocity) > panGestureConfig.minFlingVelocity;
           const sign = Math.sign(velocity);
           const flingMomentum = isFling ? (width / 2) * sign : 0;
 
@@ -179,17 +221,52 @@ function Story<T>({
             }
           );
         })
-        .minDistance(gestureConfig?.minDistance ?? 10),
+        .onTouchesDown(() => {
+          rootTouchState.value = 'down';
+        })
+        .onTouchesMove(() => {
+          rootTouchState.value = 'move';
+        })
+        .onTouchesUp(() => {
+          rootTouchState.value = 'up';
+        })
+        .minDistance(panGestureConfig.minDistance),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bounceThreshold, gestureConfig?.minDistance, minFlingVelocity, width]
+    [width, panGestureConfig]
+  );
+
+  const longPressGesture = useMemo(
+    () =>
+      Gesture.LongPress()
+        .minDuration(longPressGestureConfig.minDuration)
+        .maxDistance(longPressGestureConfig.maxDistance)
+        .enabled(longPressGestureConfig.enabled)
+        .onBegin(() => {
+          rootPressState.value = 'pressIn';
+        })
+        .onStart(() => {
+          rootPressState.value = 'longPress';
+        })
+        .onEnd(() => {
+          rootPressState.value = 'pressOut';
+        }),
+    [longPressGestureConfig, rootPressState]
   );
 
   const context: StoryContextType = useMemo(
     () => ({
       setPageIndex,
       activePageIndex: pageIndex,
+      rootTouchState,
+      rootPressState,
+      longPressGesture,
     }),
-    [setPageIndex, pageIndex]
+    [setPageIndex, pageIndex, rootTouchState, rootPressState, longPressGesture]
+  );
+
+  const gesture = useMemo(
+    () => Gesture.Simultaneous(longPressGesture, panGesture),
+    [longPressGesture, panGesture]
   );
 
   return (

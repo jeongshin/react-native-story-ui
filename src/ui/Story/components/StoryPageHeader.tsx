@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useStoryFlatListContext } from '../../../hooks/useStoryFlatListContext';
 import Animated, {
@@ -23,11 +23,11 @@ interface StoryPageHeaderProps<T> {
   inactiveColor?: string;
   activeColor?: string;
   pageIndex: number;
-
-  // TODO: add props below
-  autoPlay?: boolean;
   topInset?: number;
   style?: StyleProp<ViewStyle>;
+
+  // TODO: add props below
+  // autoPlay?: boolean;
 }
 
 function StoryPageHeader<T>({
@@ -43,11 +43,17 @@ function StoryPageHeader<T>({
 }: StoryPageHeaderProps<T>) {
   const { width } = useWindowDimensions();
 
+  // TODO: extract all logics to useStoryPageHeaderContext hook and make it reusable
+
   const { activeItemIndex, skipToNextItem } = useStoryFlatListContext();
 
-  const { activePageIndex } = useStoryContext();
+  const { activePageIndex, rootPressState, rootTouchState } = useStoryContext();
 
   const animation = useSharedValue<number>(0);
+
+  const pausedAnimation = useSharedValue<number>(0);
+
+  const pausedActivePageIndex = useSharedValue<number>(activePageIndex.value);
 
   // use reacted value to fix flickering since activeItemIndex value changes faster than animation value
   const reactedActiveItemIndex = useSharedValue<number>(activeItemIndex.value);
@@ -55,12 +61,34 @@ function StoryPageHeader<T>({
   const itemSize =
     (width - paddingHorizontal * 2 - gap * (data.length - 1)) / data.length;
 
+  const resetAnimationCallback = useCallback(
+    (done: boolean | undefined) => {
+      'worklet';
+      if (activePageIndex.value !== pageIndex) return;
+
+      if (!done) {
+        return;
+      }
+
+      runOnJS(skipToNextItem)();
+    },
+    [skipToNextItem, pageIndex, activePageIndex]
+  );
+
+  const resumeAnimationCallback = useCallback(
+    (done: boolean | undefined) => {
+      'worklet';
+      if (!done) return;
+      runOnJS(skipToNextItem)();
+    },
+    [skipToNextItem]
+  );
+
+  // case 1. animate when active item index changes via cube animation with pan gesture
   // TODO: start animation when focused image loaded
   useAnimatedReaction(
     () => [activeItemIndex.value, activePageIndex.value],
     () => {
-      // console.log('active index changed', prev, next);
-
       if (activePageIndex.value !== pageIndex) return;
 
       animation.value = 0;
@@ -72,13 +100,83 @@ function StoryPageHeader<T>({
       animation.value = withTiming(
         1,
         { duration, easing: Easing.linear },
-        (done) => {
-          if (!done) return;
-          runOnJS(skipToNextItem)();
-        }
+        resetAnimationCallback
       );
     },
-    [duration, pageIndex]
+    [duration, pageIndex, resetAnimationCallback]
+  );
+
+  // case 2. pause & resume animation when long press detected
+  useAnimatedReaction(
+    () => rootPressState.value,
+    (next, prev) => {
+      if (
+        activePageIndex.value !== pageIndex ||
+        next === null ||
+        prev === null
+      ) {
+        return;
+      }
+
+      if (next === 'longPress' && prev === 'pressIn') {
+        pausedAnimation.value = animation.value;
+        pausedActivePageIndex.value = activePageIndex.value;
+        cancelAnimation(animation);
+        return;
+      }
+
+      if (
+        next === 'pressOut' &&
+        prev === 'longPress' &&
+        activePageIndex.value === pausedActivePageIndex.value
+      ) {
+        animation.value = withTiming(
+          1,
+          {
+            duration: (1 - pausedAnimation.value) * duration,
+            easing: Easing.linear,
+          },
+          resumeAnimationCallback
+        );
+      }
+    },
+    [resumeAnimationCallback, pageIndex, duration]
+  );
+
+  // case 3. pause & resume animation when cube animation detected
+  useAnimatedReaction(
+    () => rootTouchState.value,
+    (next, prev) => {
+      if (
+        activePageIndex.value !== pageIndex ||
+        next === null ||
+        prev === null
+      ) {
+        return;
+      }
+
+      if (next === 'move' && prev === 'down') {
+        pausedAnimation.value = animation.value;
+        pausedActivePageIndex.value = activePageIndex.value;
+        cancelAnimation(animation);
+      }
+
+      if (
+        next === 'up' &&
+        prev === 'move' &&
+        activePageIndex.value === pausedActivePageIndex.value
+      ) {
+        animation.value = withTiming(
+          1,
+          {
+            duration: (1 - pausedAnimation.value) * duration,
+            easing: Easing.linear,
+          },
+          resumeAnimationCallback
+        );
+      }
+    },
+    []
   );
 
   return (
@@ -92,7 +190,6 @@ function StoryPageHeader<T>({
           flexDirection: 'row',
           paddingHorizontal,
           justifyContent: 'space-evenly',
-          // backgroundColor: 'red',
         },
         style,
       ])}

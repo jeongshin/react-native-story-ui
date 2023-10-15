@@ -1,8 +1,16 @@
 import * as React from 'react';
 
-import { Image, Pressable, useWindowDimensions } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Story, useStoryFlatListContext } from 'react-native-story-ui';
+import { Image, Pressable, View, useWindowDimensions } from 'react-native';
+import {
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import {
+  Story,
+  useStoryContext,
+  useStoryFlatListContext,
+} from 'react-native-story-ui';
 import type { StoryRenderItem } from 'react-native-story-ui';
 
 type Item = {
@@ -63,7 +71,13 @@ export default function App() {
         data={items}
         pageIndex={index}
         renderItem={({ item }) => <Item item={item} />}
-        PageFooterElement={<Story.PageHeader data={items} pageIndex={index} />}
+        PageFooterElement={
+          <Story.PageHeader
+            data={items}
+            pageIndex={index}
+            duration={10 * 1000}
+          />
+        }
       />
     );
   };
@@ -82,20 +96,12 @@ export default function App() {
 const Item = ({ item }: { item: Item }) => {
   const { width, height } = useWindowDimensions();
 
-  const { handleSkipItemOnPress } = useStoryFlatListContext();
+  const { pressHandlers } = useStoryFlatListContext();
+
+  // const { longPressGesture } = useStoryContext();
 
   return (
-    <Pressable
-      onPressIn={() => {
-        //
-      }}
-      onPressOut={() => {
-        //
-      }}
-      onPress={(e) => {
-        handleSkipItemOnPress(e);
-      }}
-    >
+    <Pressable {...pressHandlers} style={{ width, height }}>
       <Image
         source={{ uri: item.backgroundImage }}
         style={{ width, height, backgroundColor: 'black' }}

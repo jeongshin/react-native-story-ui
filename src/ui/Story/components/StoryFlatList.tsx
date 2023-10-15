@@ -1,15 +1,18 @@
 import React, { useCallback, useRef, type ReactElement, useMemo } from 'react';
-import type { FlatListProps } from 'react-native';
+import type { FlatListProps, GestureResponderEvent } from 'react-native';
 import { View, FlatList, useWindowDimensions, StyleSheet } from 'react-native';
 
-// import { useStoryContext } from '../../../hooks/useStoryContext';
 import {
   StoryFlatListContext,
   type StoryFlatListContextType,
+  type TouchState,
 } from '../../../context';
-import type { GestureResponderEvent } from 'react-native';
 import { useStoryContext } from '../../../hooks/useStoryContext';
-import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import {
+  useAnimatedReaction,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 interface StoryFlatListProps<T> extends FlatListProps<T> {
   pageIndex: number;
@@ -33,7 +36,7 @@ function StoryFlatList<T>({
     return data ? data.length - 1 : 0;
   }, [data?.length]);
 
-  const { setPageIndex } = useStoryContext();
+  const { setPageIndex, rootPressState } = useStoryContext();
 
   const ref = useRef<FlatList<T> | null>(null);
 
@@ -60,9 +63,11 @@ function StoryFlatList<T>({
     setActiveItem(nextItemIndex);
   }, [activeItemIndex, maxItemIndex, pageIndex, setActiveItem, setPageIndex]);
 
-  const onPressItem = useCallback(
+  const handleSkipItemOnPress = useCallback(
     (e: GestureResponderEvent) => {
       'worklet';
+      if (rootPressState.value === 'longPress') return;
+
       const pageX = e.nativeEvent.pageX;
       let nextItemIndex = activeItemIndex.value;
 
@@ -87,8 +92,6 @@ function StoryFlatList<T>({
 
       if (!ref.current) return;
 
-      console.log('scroll to index', nextItemIndex);
-
       setActiveItem(nextItemIndex);
     },
     [
@@ -98,17 +101,18 @@ function StoryFlatList<T>({
       setPageIndex,
       pageIndex,
       maxItemIndex,
+      rootPressState,
     ]
   );
 
   const context = useMemo<StoryFlatListContextType>(
     () => ({
       maxItemIndex,
-      handleSkipItemOnPress: onPressItem,
+      onPressItem: handleSkipItemOnPress,
       activeItemIndex,
       skipToNextItem,
     }),
-    [onPressItem, maxItemIndex, activeItemIndex, skipToNextItem]
+    [maxItemIndex, handleSkipItemOnPress, activeItemIndex, skipToNextItem]
   );
 
   const getItemLayout = useCallback(
