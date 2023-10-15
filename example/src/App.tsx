@@ -1,16 +1,16 @@
 import * as React from 'react';
 
-import { Image, Pressable, View, useWindowDimensions } from 'react-native';
 import {
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import {
-  Story,
-  useStoryContext,
-  useStoryFlatListContext,
-} from 'react-native-story-ui';
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Story, useStoryFlatListContext } from 'react-native-story-ui';
 import type { StoryRenderItem } from 'react-native-story-ui';
 
 type Item = {
@@ -65,6 +65,8 @@ export default function App() {
     ],
   ];
 
+  const { top } = useSafeAreaInsets();
+
   const renderStory: StoryRenderItem<Item[]> = ({ item: items, index }) => {
     return (
       <Story.FlatList
@@ -75,7 +77,8 @@ export default function App() {
           <Story.PageHeader
             data={items}
             pageIndex={index}
-            duration={10 * 1000}
+            duration={5 * 1000}
+            topInset={top + 8}
           />
         }
       />
@@ -94,19 +97,17 @@ export default function App() {
 }
 
 const Item = ({ item }: { item: Item }) => {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
-  const { pressHandlers } = useStoryFlatListContext();
-
-  // const { longPressGesture } = useStoryContext();
+  const { onPressItem } = useStoryFlatListContext();
 
   return (
-    <Pressable {...pressHandlers} style={{ width, height }}>
+    <Pressable onPress={onPressItem} style={{ width, flex: 1 }}>
       <Image
         source={{ uri: item.backgroundImage }}
-        style={{ width, height, backgroundColor: 'black' }}
+        style={StyleSheet.absoluteFill}
         key={item.backgroundImage}
-        resizeMode="contain"
+        resizeMode="cover"
       />
     </Pressable>
   );

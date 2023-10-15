@@ -87,7 +87,7 @@ function Story<T>({
   onReachedFirstPage,
   onReachedLastPage,
 }: StoryProps<T>) {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const scrollX = useSharedValue(initialPageIndex * width);
 
@@ -131,7 +131,6 @@ function Story<T>({
 
   const handleChangePageIndex = useCallback(
     (index: number) => {
-      // console.log('=======PAGE CHANGED======', index);
       setActivePageIndex(index);
       onChangePageIndex?.(index);
     },
@@ -224,13 +223,16 @@ function Story<T>({
         .onTouchesDown(() => {
           rootTouchState.value = 'down';
         })
-        .onTouchesMove(() => {
+        .onTouchesMove((e) => {
+          if (e.state !== 4) return;
           rootTouchState.value = 'move';
         })
         .onTouchesUp(() => {
           rootTouchState.value = 'up';
         })
-        .minDistance(panGestureConfig.minDistance),
+        .minDistance(panGestureConfig.minDistance)
+        .minPointers(1)
+        .maxPointers(1),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [width, panGestureConfig]
   );
@@ -272,7 +274,7 @@ function Story<T>({
   return (
     <GestureDetector gesture={gesture}>
       <StoryContext.Provider value={context}>
-        <View style={StyleSheet.flatten([style, { width, height }])}>
+        <View style={StyleSheet.flatten([{ width, flex: 1 }, style])}>
           {stories.map((items, i) => (
             <CubeAnimation
               isActive={activePageIndex === i}

@@ -5,14 +5,9 @@ import { View, FlatList, useWindowDimensions, StyleSheet } from 'react-native';
 import {
   StoryFlatListContext,
   type StoryFlatListContextType,
-  type TouchState,
 } from '../../../context';
 import { useStoryContext } from '../../../hooks/useStoryContext';
-import {
-  useAnimatedReaction,
-  useDerivedValue,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 interface StoryFlatListProps<T> extends FlatListProps<T> {
   pageIndex: number;
@@ -30,7 +25,7 @@ function StoryFlatList<T>({
   style,
   ...props
 }: StoryFlatListProps<T>) {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const maxItemIndex = useDerivedValue(() => {
     return data ? data.length - 1 : 0;
@@ -128,23 +123,23 @@ function StoryFlatList<T>({
 
   return (
     <StoryFlatListContext.Provider value={context}>
-      <View style={{ width, height }}>
-        {PageHeaderElement}
-        <FlatList
-          ref={ref}
-          {...props}
-          data={data}
-          getItemLayout={getItemLayout}
-          renderItem={renderItem}
-          snapToInterval={width}
-          pagingEnabled
-          horizontal
-          initialScrollIndex={initialScrollIndex}
-          style={StyleSheet.flatten([style, { width, flex: 1 }])}
-          scrollEnabled={false}
-        />
-        {PageFooterElement}
-      </View>
+      {PageHeaderElement}
+      <FlatList
+        ref={ref}
+        {...props}
+        data={data}
+        getItemLayout={getItemLayout}
+        renderItem={renderItem}
+        snapToInterval={width}
+        pagingEnabled
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        initialScrollIndex={initialScrollIndex}
+        style={style}
+        scrollEnabled={false}
+      />
+      {PageFooterElement}
     </StoryFlatListContext.Provider>
   );
 }

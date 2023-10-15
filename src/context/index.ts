@@ -1,12 +1,10 @@
 import { createContext } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import type { LongPressGesture } from 'react-native-gesture-handler';
 import type { SharedValue } from 'react-native-reanimated';
 
 export interface StoryContextType {
   activePageIndex: SharedValue<number>;
   setPageIndex: (idx: number) => void;
-  longPressGesture: LongPressGesture;
   rootTouchState: SharedValue<TouchState>;
   rootPressState: SharedValue<PressState>;
 }
